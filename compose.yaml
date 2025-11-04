@@ -1,6 +1,6 @@
 services:
   tilearchive:
-    image: docker.io/mariadb:latest # Added docker server
+    image: ethanmitchell9/mariadb:latest # Added docker server (changing this to allow push to my account ethanmitchell9)
     container_name: tilearchive-container
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -16,6 +16,7 @@ services:
 
   ceramnote:
     build: ./frontend # changed to frontend; added build command
+    image: ethanmitchell9/ceramnote:latest
     container_name: ceramnote-container
     ports:
       - "80:80"
@@ -34,6 +35,7 @@ services:
 
   backend:
     build: ./backend # changed to backend
+    image: ethanmitchell9/backend:latest
     ports:
       - "8000:8000"
     volumes:
