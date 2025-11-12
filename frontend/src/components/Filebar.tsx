@@ -133,6 +133,12 @@ const Filebar: React.FC<FilebarProps> = ({
 			color: '#FF0000'
 		}]);
 	};
+	React.useEffect(() => {
+	if (Object.keys(availableModels).length > 0 && selectedModels.length === 0) {
+		const firstModel = Object.keys(availableModels)[0];
+		onModelSelect([firstModel]);
+	}
+}, [availableModels]);
 
 	return (
 		<Menubar.Root className='MenubarRoot'>
@@ -186,8 +192,9 @@ const Filebar: React.FC<FilebarProps> = ({
 				</Menubar.Portal>
 			</Menubar.Menu>
 			{/** CNN */}
+			{/** MODEL */}
 			<Menubar.Menu>
-				<Menubar.Trigger className='MenubarTrigger'>Preprocess</Menubar.Trigger>
+				<Menubar.Trigger className='MenubarTrigger'>Models</Menubar.Trigger>
 				<Menubar.Portal>
 					<Menubar.Content
 						className='MenubarContent'
@@ -218,12 +225,6 @@ const Filebar: React.FC<FilebarProps> = ({
 							}}
 						>
 							Upload Model
-						</Menubar.Item>
-						<Menubar.Separator className='MenubarSeparator' />
-						<Menubar.Item className='MenubarItem inset'
-							onClick={onPreprocess}
-						>
-							Preprocess
 						</Menubar.Item>
 					</Menubar.Content>
 				</Menubar.Portal>
@@ -280,6 +281,13 @@ const Filebar: React.FC<FilebarProps> = ({
 					</Menubar.Content>
 				</Menubar.Portal>
 			</Menubar.Menu>
+			<button
+					className="MenubarButton"
+					onClick={onPreprocess}
+				>
+					Preprocess
+				</button>
+			{/* Dialog for Editing Classes */}
 			<Dialog.Root open={isClassesDialogOpen} onOpenChange={setIsClassesDialogOpen}>
 				<Dialog.Portal>
 					<Dialog.Overlay className='DialogOverlay' />

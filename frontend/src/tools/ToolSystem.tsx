@@ -529,18 +529,31 @@ export const Toolbar = ({ toolSystem, onToolSelect }: { toolSystem: ToolSystem, 
                         <button
                             key={tool.name}
                             style={{
-                                background: 'var(--color-red)',
-                                margin: 2,
-                                padding: 6,
-                                position: 'relative',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                            }}
-                            title="Delete selected annotations"
-                            onClick={() => (tool as any).execute()}
-                        >
-                            <tool.icon width={24} height={24} className='text-light' />
+				                backgroundColor: '#b03131', // dark red, consistent with gray theme contrast
+				                margin: 2,
+				                padding: 6,
+				                borderRadius: 6,
+				                display: 'flex',
+				                alignItems: 'center',
+				                justifyContent: 'center',
+				                cursor: 'pointer',
+				                transition: 'background-color 0.2s ease, transform 0.1s ease',
+				                boxShadow: '0 1px 3px rgba(0,0,0,0.3)', // slight pop
+			                }}
+			                title="Delete selected annotations"
+			                onMouseEnter={(e) => {
+				                const el = e.currentTarget as HTMLButtonElement;
+				                el.style.backgroundColor = '#962727'; // darker on hover
+				                el.style.transform = 'scale(1.05)'; // slight pop effect
+			                }}
+			                onMouseLeave={(e) => {
+				                const el = e.currentTarget as HTMLButtonElement;
+				                el.style.backgroundColor = '#b03131';
+				                el.style.transform = 'scale(1.0)';
+			                }}
+			                onClick={() => (tool as any).execute()}
+		                >
+			                <tool.icon width={22} height={22} className="text-light" />
                         </button>
                     );
                 }
