@@ -516,6 +516,7 @@ function App() {
 			//setCurrentExportSubStep('');
 
 			// Generate the ZIP file and trigger download
+
 			const zipBlob = await zip.generateAsync({ type: 'blob' });
 			const zipUrl = URL.createObjectURL(zipBlob);
 
@@ -529,7 +530,6 @@ function App() {
 
 			if (!response.ok) {
 				throw new Error(`HTTP error! Status: ${response.status}`);
-			}
 
 			// const a = document.createElement('a');
 			// a.href = zipUrl;
@@ -537,6 +537,11 @@ function App() {
 			// a.click();
 			// URL.revokeObjectURL(zipUrl);
 
+			// const a = document.createElement('a');
+			// a.href = zipUrl;
+			// a.download = 'annotations.zip';
+			// a.click();
+			// URL.revokeObjectURL(zipUrl);
 
 			setCurrentExportStep('Export complete!');
 		}
