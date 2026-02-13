@@ -17,8 +17,11 @@ import { useTranslation } from "react-i18next";
 
 const CHECK_ITEMS = ['Always Show Bookmarks Bar', 'Always Show Full URLs'];
 
+
 interface FilebarProps {
-	setImageFiles: (images: FileList) => void;
+	updateImageFiles: (updater: (prev: File[]) => File[]) => void;
+	closeImage: (index: number) => void;
+    clearAllFiles: () => void;
 	configManager: ConfigManager | null;
 	toolSystem: ToolSystem | null;
 	currentAnnotationClass: string;
@@ -35,7 +38,9 @@ interface FilebarProps {
  * Filebar component; displays filebar and handles system interaction beyond basic tools.
  */
 const Filebar: React.FC<FilebarProps> = ({
-	setImageFiles,
+	updateImageFiles,
+	closeImage,
+	clearAllFiles,
 	configManager,
 	toolSystem,
 	currentAnnotationClass,
@@ -57,6 +62,9 @@ const Filebar: React.FC<FilebarProps> = ({
 
 	const [isClassesDialogOpen, setIsClassesDialogOpen] = useState(false);
 	const [classItems, setClassItems] = useState<Array<{ id: string, name: string, color: string }>>([]);
+	const [openAbout, setOpenAbout] = useState(false);
+	const [openInstructions, setOpenInstructions] = useState(false);
+	//const { t } = useTranslation(["inspector", "help"]);
 
 	/**
 	 * Select a ONNX model from the list of models,
@@ -69,6 +77,54 @@ const Filebar: React.FC<FilebarProps> = ({
 		else {
 			onModelSelect([...selectedModels, model]);
 		}
+	};
+	
+
+	const handleFilesSelected = (fileList: FileList | null) => {
+		if (!fileList) {
+			updateImageFiles(() => []);
+			return;
+		}
+
+		// Convert to array
+		let files = Array.from(fileList);
+
+		// Filter image types (keep folder structure via webkitRelativePath)
+		files = files.filter(f =>
+			(f.type && f.type.startsWith("image/")) ||
+			/\.(jpe?g|png|gif|bmp|tiff|webp|svg)$/i.test(f.name)
+		);
+
+		if (files.length === 0) {
+			updateImageFiles(() => []);
+			return;
+		}
+
+		// Sort by folder path + file name for consistent ordering
+		files.sort((a, b) => {
+			const pa = a.webkitRelativePath || a.name;
+			const pb = b.webkitRelativePath || b.name;
+			return pa.localeCompare(pb);
+		});
+
+		// Append instead of replacing existing images
+		updateImageFiles((prev) => {
+			const combined = [...prev, ...files];
+
+			const unique = Array.from(
+				new Map(
+					combined.map(f => [(f.webkitRelativePath || f.name) + f.lastModified, f])
+				).values()
+			);
+
+			unique.sort((a, b) => {
+				const pa = a.webkitRelativePath || a.name;
+				const pb = b.webkitRelativePath || b.name;
+				return pa.localeCompare(pb);
+			});
+
+			return unique;
+		});
 	};
 
 	// Update local state when config manager changes
@@ -161,41 +217,36 @@ const Filebar: React.FC<FilebarProps> = ({
 						sideOffset={5}
 						alignOffset={-3}
 					>
-						<Menubar.Item className='MenubarItem'
-							onClick={() => {
-								const fileInput = document.getElementById('imageInput') as HTMLInputElement;
-								if (fileInput) {
-									fileInput.click(); // Programmatically trigger the file input
-								}
-							}}
+						<Menubar.Item
+							className="MenubarItem"
+							onClick={() => document.getElementById("imageInput")?.click()}
 						>
-							{t("open")} <div className='RightSlot'>CTRL + O</div>
+							{t("open")} <div className="RightSlot">CTRL + O</div>
 						</Menubar.Item>
-						{/* New: Open folder (select directory) */}
-						<Menubar.Item className='MenubarItem'
-							onClick={() => {
-								const fileInput = document.getElementById('imageInput') as HTMLInputElement;
-								if (fileInput) {
-									// Enable directory selection (works in Chromium/WebKit). Use setAttribute to avoid TS props errors.
-									fileInput.setAttribute('webkitdirectory', '');
-									fileInput.setAttribute('directory', '');
-									fileInput.click();
-									// clear attributes after click so normal file dialog still works later
-									setTimeout(() => {
-										fileInput.removeAttribute('webkitdirectory');
-										fileInput.removeAttribute('directory');
-									}, 200);
-								}
-							}}
+
+						<Menubar.Item
+							className="MenubarItem"
+							onClick={() => document.getElementById("folderInput")?.click()}
 						>
-							Open Folder
+							{t("openFolder")}
 						</Menubar.Item>
 						<Menubar.Separator className='MenubarSeparator' />
-						<Menubar.Item className='MenubarItem'
+						<Menubar.Item
+							className="MenubarItem"
+							onClick={() => closeImage(toolSystem?.currentImageIndex ?? 0)}
 						>
-							Clear All Files
+							{t("closeFile")}
 						</Menubar.Item>
-						<Menubar.Separator className='MenubarSeparator' />
+						<Menubar.Item
+							className='MenubarItem'
+							    onClick={() => {
+									if (window.confirm(t("confirmClearMessage") || "Are you sure you want to clear all files?")) {
+										clearAllFiles();
+									}
+								}}
+						>
+							{t("clearFiles")}
+						</Menubar.Item>
 						<Menubar.Separator className='MenubarSeparator' />
 						<Menubar.Sub>
 							<Menubar.SubTrigger className='MenubarSubTrigger'>
@@ -264,7 +315,7 @@ const Filebar: React.FC<FilebarProps> = ({
 				</Menubar.Portal>
 			</Menubar.Menu>
 			{/** CONFIG */}
-			<Menubar.Menu>
+			{/**<Menubar.Menu>
 				<Menubar.Trigger className='MenubarTrigger'>{t("config")}</Menubar.Trigger>
 				<Menubar.Portal>
 					<Menubar.Content
@@ -314,7 +365,94 @@ const Filebar: React.FC<FilebarProps> = ({
 						</Menubar.Sub>
 					</Menubar.Content>
 				</Menubar.Portal>
+			</Menubar.Menu>*/}
+			{/** Help */}
+			<Menubar.Menu>
+				<Menubar.Trigger className='MenubarTrigger'>{t("help")}</Menubar.Trigger>
+
+				<Menubar.Portal>
+					<Menubar.Content
+						className='MenubarContent'
+						align='start'
+						sideOffset={5}
+						alignOffset={-14}
+					>
+
+						{/* ABOUT DIALOG: controlled approach */}
+						<Dialog.Root open={openAbout} onOpenChange={setOpenAbout}>
+							{/* Menubar item — use onSelect to intercept selection and open dialog */}
+							<Menubar.Item
+								className='MenubarItem inset'
+								onSelect={(e: Event) => {
+									e.preventDefault();        // prevent the menubar from auto-closing
+									setOpenAbout(true);        // open the dialog
+								}}
+							>
+								{t("about")}
+							</Menubar.Item>
+
+							{/* Dialog content (no trigger) */}
+							<Dialog.Portal>
+								<Dialog.Overlay className="DialogOverlay" />
+								<Dialog.Content className="DialogContent">
+									<Dialog.Title className="DialogTitle">
+										{t("about")}
+									</Dialog.Title>
+									<Dialog.Description className="DialogDescription">
+										{t("aboutText")
+											.split("\n\n")
+											.map((para, i) => (
+												<p key={i} style={{ marginBottom: "1rem" }}>
+													{para}
+												</p>
+											))}
+									</Dialog.Description>
+
+									<Dialog.Close asChild>
+										<button className="DialogCloseButton">{t("close")}</button>
+									</Dialog.Close>
+								</Dialog.Content>
+							</Dialog.Portal>
+						</Dialog.Root>
+
+
+						{/* INSTRUCTIONS DIALOG */}
+						<Dialog.Root open={openInstructions} onOpenChange={setOpenInstructions}>
+							<Menubar.Item
+								className='MenubarItem inset'
+								onSelect={(e: Event) => {
+									e.preventDefault();
+									setOpenInstructions(true);
+								}}
+							>
+								{t("instructions")}
+							</Menubar.Item>
+
+							<Dialog.Portal>
+								<Dialog.Overlay className="DialogOverlay" />
+								<Dialog.Content className="DialogContent">
+									<Dialog.Title className="DialogTitle">{t("instructions")}</Dialog.Title>
+									<Dialog.Description className="DialogDescription"> {t("instructionsText")
+										.split("\n\n")
+										.map((para, i) => (
+											<p key={i} style={{ marginBottom: "1rem" }}>
+												{para}
+											</p>
+										))}</Dialog.Description>
+									<Dialog.Close asChild>
+										<button className="DialogCloseButton">{t("close")}</button>
+									</Dialog.Close>
+								</Dialog.Content>
+							</Dialog.Portal>
+						</Dialog.Root>
+
+
+					</Menubar.Content>
+				</Menubar.Portal>
 			</Menubar.Menu>
+
+
+			{/** PREPROCESS */}
 			<button
 					className="MenubarButton"
 					onClick={onPreprocess}
@@ -384,10 +522,10 @@ const Filebar: React.FC<FilebarProps> = ({
 						</div>
 						<div className='DialogActions'>
 							<Dialog.Close asChild>
-								<button className='Button green' onClick={handleSaveClasses}>Save</button>
+								<button className='Button green' onClick={handleSaveClasses}>{t("save")}</button>
 							</Dialog.Close>
 							<Dialog.Close asChild>
-								<button className='Button gray' onClick={handleCancelClasses}>Cancel</button>
+								<button className='Button gray' onClick={handleCancelClasses}>{t("cancel")}</button>
 							</Dialog.Close>
 						</div>
 
@@ -399,32 +537,41 @@ const Filebar: React.FC<FilebarProps> = ({
 					</Dialog.Content>
 				</Dialog.Portal>
 			</Dialog.Root>
-			{/** Keep input outside of the Menubar popovers, since clicking removes it from the DOM :( */}
-			<input
-				id='imageInput'
-				type='file'
-				multiple
-				accept='image/*'
-				style={{ display: 'none' }}
-				onChange={(e) => {
-					const files = Array.from(e.currentTarget.files || []);
-					// keep only images (file.type may be empty for some files from folders — fallback to extension)
-					const imageFiles = files.filter(f =>
-						(f.type && f.type.startsWith('image/')) ||
-						/\.(jpe?g|png|gif|tiff|bmp|webp|svg)$/i.test(f.name)
-					);
-
-					if (imageFiles.length) {
-						// convert back to a FileList using DataTransfer
-						const dt = new DataTransfer();
-						imageFiles.forEach(f => dt.items.add(f));
-						setImageFiles(dt.files);
-					} else {
-						// clear / no images selected — pass empty FileList
-						const dt = new DataTransfer();
-						setImageFiles(dt.files);
+			{/* Select individual image files */}
+            <input
+                id="imageInput"
+                type="file"
+                multiple
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => {
+					// Handle file selection cancellation
+					if(!e.currentTarget.files || e.currentTarget.files.length === 0) {
+						console.log("File selection cancelled");
+						return;
 					}
+					console.log("Files selected:", e.currentTarget.files);
+					handleFilesSelected(e.currentTarget.files);
+					e.currentTarget.value = "";
 				}}
+            />
+
+			{/* Select folders */}
+			<input
+				id="folderInput"
+				type="file"
+				multiple
+				style={{ display: "none" }}
+				onChange={(e) => {
+					if(!e.currentTarget.files || e.currentTarget.files.length === 0) {
+						console.log("File selection cancelled");
+						return;
+					}
+					console.log("Files selected:", e.currentTarget.files);
+					handleFilesSelected(e.currentTarget.files);
+					e.currentTarget.value = "";
+				}}
+				{...{ webkitdirectory: "", directory: "" }}
 			/>
 			<input
 				id='modelInput'
